@@ -19,6 +19,10 @@ from fastapi import FastAPI, HTTPException  # noqa: E402
 from pydantic import BaseModel, Field  # noqa: E402
 
 from fintra import __version__  # noqa: E402
+from fintra.config import ensure_gcp_credentials  # noqa: E402
+from fintra.api.whatsapp import router as whatsapp_router  # noqa: E402
+
+ensure_gcp_credentials()  # serverless hosts pass the key as GOOGLE_CREDENTIALS_JSON
 
 logger = logging.getLogger("fintra.api")
 
@@ -27,6 +31,7 @@ app = FastAPI(
     description="Multi-agent RAG assistant (LangGraph hub-and-spoke on Vertex AI).",
     version=__version__,
 )
+app.include_router(whatsapp_router)
 
 
 class ChatRequest(BaseModel):

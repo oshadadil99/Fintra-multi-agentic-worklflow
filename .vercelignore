@@ -1,0 +1,13 @@
+# never upload secrets or local-only assets
+.env
+.env.*
+.venv/
+.git/
+tests/
+scripts/
+data/
+__pycache__/
+*.egg-info/
+.pytest_cache/
+PLAN.md
+beta_plan.md

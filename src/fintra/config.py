@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     supabase_url: str
     supabase_service_role_key: str
 
+    # WhatsApp Cloud API (Meta) - filled in when the webhook goes live
+    whatsapp_verify_token: str = ""
+    whatsapp_access_token: str = ""
+    whatsapp_phone_number_id: str = ""
+
     # Behaviour
     memory_window: int = 10
     retrieval_k: int = 4
@@ -34,3 +39,25 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     return Settings()
+
+
+def ensure_gcp_credentials() -> None:
+    """Support serverless hosts (Vercel) where secrets are env-var-only.
+
+    If GOOGLE_CREDENTIALS_JSON holds the service-account key JSON, write it
+    to a temp file and point GOOGLE_APPLICATION_CREDENTIALS at it so the
+    Google SDKs pick it up. A real key file path always takes precedence.
+    """
+    import os
+    import tempfile
+    from pathlib import Path
+
+    if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
+        return
+    raw = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
+    if not raw:
+        return
+    path = Path(tempfile.gettempdir()) / "gcp-credentials.json"
+    if not path.exists():
+        path.write_text(raw, encoding="utf-8")
+    os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(path)

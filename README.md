@@ -140,9 +140,12 @@ Covers: registry invariants, routing decisions (including unknown-route degradat
 ## Roadmap
 
 - [x] Phases 0–5: infrastructure, ingestion, LangGraph core, memory, CLI, REST API
-- [ ] **WhatsApp integration** — Meta Cloud API webhook in front of `/chat` (contract already compatible)
+- [x] **WhatsApp integration** — Meta Cloud API webhook (`GET/POST /webhook`), Vercel serverless deployment ([docs/DEPLOY.md](docs/DEPLOY.md))
+- [ ] **Redis caching** — read-through cache in front of Supabase history + response cache for repeated FAQs
+- [ ] **MCP integration** — expose the assistant's retrieval and answering as Model Context Protocol tools
 - [ ] **Hybrid search** — BM25 + dense fusion via RRF (`EnsembleRetriever`) for exact-term recall (rates, product names)
 - [ ] **Query rewriting** — history-aware retrieval: condense follow-ups into standalone queries before embedding
+- [ ] **Reranking** — cross-encoder second stage once the corpus outgrows `fetch_k` (dense+BM25 → RRF → rerank → MMR)
 - [ ] Structured evaluation harness — routing accuracy + answer groundedness scoring
 
 ---
