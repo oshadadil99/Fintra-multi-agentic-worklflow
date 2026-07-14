@@ -10,3 +10,10 @@ CREATE TABLE IF NOT EXISTS chat_history (
 );
 
 CREATE INDEX IF NOT EXISTS idx_chat_history_session ON chat_history(session_id);
+
+-- Webhook idempotency: WhatsApp redelivers messages when a response is slow;
+-- claiming the message id here makes every delivery after the first a no-op.
+CREATE TABLE IF NOT EXISTS processed_messages (
+    message_id TEXT PRIMARY KEY,
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);

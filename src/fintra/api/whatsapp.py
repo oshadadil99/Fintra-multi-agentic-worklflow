@@ -55,7 +55,13 @@ def extract_text_messages(payload: dict) -> list[dict]:
         for change in entry.get("changes", []):
             for msg in change.get("value", {}).get("messages", []):
                 if msg.get("type") == "text":
-                    messages.append({"from": msg["from"], "text": msg["text"]["body"]})
+                    messages.append(
+                        {
+                            "id": msg.get("id", ""),
+                            "from": msg["from"],
+                            "text": msg["text"]["body"],
+                        }
+                    )
     return messages
 
 
@@ -88,8 +94,15 @@ def process_message(sender: str, text: str) -> None:
 
 @router.post("/webhook")
 async def receive_webhook(request: Request) -> dict:
+    from fintra.memory.history import claim_message
+
     payload = await request.json()
     for message in extract_text_messages(payload):
+        # Meta redelivers when we respond slowly (cold starts) - only the
+        # delivery that claims the message id first gets processed
+        if message["id"] and not claim_message(message["id"]):
+            logger.info("duplicate delivery ignored (id=%s)", message["id"])
+            continue
         process_message(message["from"], message["text"])
     # always 200 - Meta retries aggressively on errors, which would duplicate replies
     return {"status": "received"}

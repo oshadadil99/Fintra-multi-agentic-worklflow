@@ -102,7 +102,7 @@ STATUS_ONLY = {
 
 def test_extract_parses_inbound_text():
     assert extract_text_messages(INBOUND_TEXT) == [
-        {"from": "94771234567", "text": "What are your FD rates?"}
+        {"id": "wamid.xyz", "from": "94771234567", "text": "What are your FD rates?"}
     ]
 
 
@@ -115,6 +115,7 @@ def test_extract_ignores_status_callbacks():
 
 def test_inbound_message_gets_answered_and_replied(monkeypatch):
     calls = {}
+    monkeypatch.setattr("fintra.memory.history.claim_message", lambda mid: True)
 
     def fake_answer_query(session_id, message):
         calls["query"] = (session_id, message)
@@ -140,9 +141,21 @@ def test_status_callback_triggers_nothing(monkeypatch):
 
 
 def test_failed_processing_still_returns_200(monkeypatch):
+    monkeypatch.setattr("fintra.memory.history.claim_message", lambda mid: True)
+
     def boom(session_id, message):
         raise RuntimeError("pinecone down")
 
     monkeypatch.setattr("fintra.service.answer_query", boom)
     response = client.post("/webhook", json=INBOUND_TEXT)
     assert response.status_code == 200  # Meta must not retry-storm us
+
+
+def test_duplicate_delivery_is_ignored(monkeypatch):
+    """Meta redelivers on slow responses - the same message id must not answer twice."""
+    monkeypatch.setattr("fintra.memory.history.claim_message", lambda mid: False)
+    monkeypatch.setattr(
+        whatsapp, "process_message", lambda *a: (_ for _ in ()).throw(AssertionError)
+    )
+    response = client.post("/webhook", json=INBOUND_TEXT)
+    assert response.status_code == 200

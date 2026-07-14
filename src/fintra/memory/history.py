@@ -34,6 +34,26 @@ def load_history(session_id: str, limit: int | None = None) -> list[dict]:
     return list(reversed(rows.data))
 
 
+def claim_message(message_id: str) -> bool:
+    """Claim a webhook message id; False means a duplicate delivery (skip it).
+
+    WhatsApp retries deliveries that respond slowly (e.g. cold starts), which
+    would produce duplicate replies. The insert-if-absent on the primary key
+    is atomic, so concurrent retries can't both claim the same message.
+    On any storage error we choose at-least-once over silence and process.
+    """
+    try:
+        result = (
+            _client()
+            .table("processed_messages")
+            .upsert({"message_id": message_id}, on_conflict="message_id", ignore_duplicates=True)
+            .execute()
+        )
+        return bool(result.data)
+    except Exception:  # noqa: BLE001
+        return True
+
+
 def append_turn(session_id: str, query: str, answer: str) -> None:
     _client().table(TABLE).insert(
         [
