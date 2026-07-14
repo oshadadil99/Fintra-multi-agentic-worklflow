@@ -1,5 +1,11 @@
 # Morgan Treasuries — Multi-Agent RAG Platform
 
+> ## 💬 Try it live on WhatsApp: **+94 72 574 1639**
+>
+> **Message the assistant right now** and watch the multi-agent workflow in action — ask about fixed deposit rates, vehicle leasing, or the company itself, then ask a follow-up to see per-session memory resolve it. Every message you send is routed live through LangGraph → Vertex AI (Gemini) → Pinecone MMR retrieval → Supabase memory, hosted serverless on Vercel.
+>
+> *Example: "What interest rate do I get on 2 million rupees?" → "and for senior citizens?"*
+
 **A production-style, multi-agent Retrieval-Augmented Generation assistant** for a fictional financial institute, *Morgan Treasuries* — built on a LangGraph hub-and-spoke architecture with Vertex AI (Gemini), Pinecone, and Supabase.
 
 ---

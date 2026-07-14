@@ -44,20 +44,45 @@ def get_settings() -> Settings:
 def ensure_gcp_credentials() -> None:
     """Support serverless hosts (Vercel) where secrets are env-var-only.
 
-    If GOOGLE_CREDENTIALS_JSON holds the service-account key JSON, write it
-    to a temp file and point GOOGLE_APPLICATION_CREDENTIALS at it so the
-    Google SDKs pick it up. A real key file path always takes precedence.
+    If GOOGLE_CREDENTIALS_JSON holds the service-account key JSON (raw or
+    base64-encoded), write it to a temp file and point
+    GOOGLE_APPLICATION_CREDENTIALS at it so the Google SDKs pick it up.
+    A real key file path always takes precedence.
     """
+    import base64
+    import json
+    import logging
     import os
     import tempfile
     from pathlib import Path
 
     if os.environ.get("GOOGLE_APPLICATION_CREDENTIALS"):
         return
-    raw = os.environ.get("GOOGLE_CREDENTIALS_JSON", "")
+    raw = os.environ.get("GOOGLE_CREDENTIALS_JSON", "").strip()
     if not raw:
         return
+
+    # tolerate values pasted with surrounding quotes
+    if len(raw) > 1 and raw[0] in "'\"" and raw[-1] == raw[0]:
+        raw = raw[1:-1].strip()
+    # tolerate base64-encoded keys
+    if not raw.startswith("{"):
+        try:
+            raw = base64.b64decode(raw, validate=True).decode("utf-8").strip()
+        except Exception:  # noqa: BLE001 - fall through to the clear error below
+            pass
+
+    try:
+        json.loads(raw)
+    except json.JSONDecodeError:
+        logging.getLogger("fintra.config").error(
+            "GOOGLE_CREDENTIALS_JSON is not valid JSON (starts with %r). "
+            "Paste the full CONTENTS of the service-account key file - it must "
+            "start with '{' - not the file path, and without wrapping quotes.",
+            raw[:12],
+        )
+        return
+
     path = Path(tempfile.gettempdir()) / "gcp-credentials.json"
-    if not path.exists():
-        path.write_text(raw, encoding="utf-8")
+    path.write_text(raw, encoding="utf-8")
     os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = str(path)
