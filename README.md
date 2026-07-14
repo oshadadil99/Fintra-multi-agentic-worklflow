@@ -1,4 +1,4 @@
-# Fintra — Multi-Agent RAG Platform
+# Morgan Treasuries — Multi-Agent RAG Platform
 
 **A production-style, multi-agent Retrieval-Augmented Generation assistant** for a fictional financial institute, *Morgan Treasuries* — built on a LangGraph hub-and-spoke architecture with Vertex AI (Gemini), Pinecone, and Supabase.
 
