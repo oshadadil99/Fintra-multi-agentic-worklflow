@@ -2,6 +2,7 @@
 
 from functools import lru_cache
 
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -29,9 +30,20 @@ class Settings(BaseSettings):
     whatsapp_access_token: str = ""
     whatsapp_phone_number_id: str = ""
 
-    # Upstash Redis (optional read-through history cache) - empty disables caching
-    upstash_redis_rest_url: str = ""
-    upstash_redis_rest_token: str = ""
+    # Upstash Redis (optional read-through history cache) - empty disables caching.
+    # Aliases cover the names Vercel's Upstash integration auto-creates.
+    upstash_redis_rest_url: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "UPSTASH_REDIS_REST_URL", "UPSTASH_REDIS_KV_REST_API_URL", "KV_REST_API_URL"
+        ),
+    )
+    upstash_redis_rest_token: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "UPSTASH_REDIS_REST_TOKEN", "UPSTASH_REDIS_KV_REST_API_TOKEN", "KV_REST_API_TOKEN"
+        ),
+    )
 
     # Behaviour
     memory_window: int = 10

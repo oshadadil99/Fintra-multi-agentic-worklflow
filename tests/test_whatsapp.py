@@ -116,6 +116,7 @@ def test_extract_ignores_status_callbacks():
 def test_inbound_message_gets_answered_and_replied(monkeypatch):
     calls = {}
     monkeypatch.setattr("fintra.memory.history.claim_message", lambda mid: True)
+    monkeypatch.setattr(whatsapp, "mark_as_read", lambda mid: calls.setdefault("read", mid))
 
     def fake_answer_query(session_id, message):
         calls["query"] = (session_id, message)
@@ -130,6 +131,7 @@ def test_inbound_message_gets_answered_and_replied(monkeypatch):
     assert response.status_code == 200
     assert calls["query"] == ("94771234567", "What are your FD rates?")
     assert calls["sent"] == ("94771234567", "1-48 months.")
+    assert calls["read"] == "wamid.xyz"  # blue ticks: their message was marked read
 
 
 def test_status_callback_triggers_nothing(monkeypatch):
@@ -142,6 +144,7 @@ def test_status_callback_triggers_nothing(monkeypatch):
 
 def test_failed_processing_still_returns_200(monkeypatch):
     monkeypatch.setattr("fintra.memory.history.claim_message", lambda mid: True)
+    monkeypatch.setattr(whatsapp, "mark_as_read", lambda mid: None)
 
     def boom(session_id, message):
         raise RuntimeError("pinecone down")
@@ -149,6 +152,16 @@ def test_failed_processing_still_returns_200(monkeypatch):
     monkeypatch.setattr("fintra.service.answer_query", boom)
     response = client.post("/webhook", json=INBOUND_TEXT)
     assert response.status_code == 200  # Meta must not retry-storm us
+
+
+def test_mark_as_read_swallows_graph_api_failures(monkeypatch):
+    """Ticks are cosmetic - a Graph API failure must not raise out of mark_as_read."""
+
+    def boom(*a, **kw):
+        raise ConnectionError("graph api down")
+
+    monkeypatch.setattr(whatsapp.httpx, "post", boom)
+    whatsapp.mark_as_read("wamid.xyz")  # must not raise
 
 
 def test_duplicate_delivery_is_ignored(monkeypatch):
