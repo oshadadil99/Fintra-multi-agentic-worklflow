@@ -81,10 +81,35 @@ def send_whatsapp_message(to: str, body: str) -> None:
     response.raise_for_status()
 
 
-def process_message(sender: str, text: str) -> None:
+def mark_as_read(message_id: str) -> None:
+    """Blue ticks + a typing indicator while the answer is being generated.
+
+    Purely cosmetic, so failures are logged and ignored - a missing tick
+    must never cost a customer their answer.
+    """
+    settings = get_settings()
+    try:
+        httpx.post(
+            f"{GRAPH_API}/{settings.whatsapp_phone_number_id}/messages",
+            headers={"Authorization": f"Bearer {settings.whatsapp_access_token}"},
+            json={
+                "messaging_product": "whatsapp",
+                "status": "read",
+                "message_id": message_id,
+                "typing_indicator": {"type": "text"},
+            },
+            timeout=10,
+        ).raise_for_status()
+    except Exception:  # noqa: BLE001
+        logger.warning("mark-as-read failed (id=%s)", message_id)
+
+
+def process_message(sender: str, text: str, message_id: str = "") -> None:
     from fintra.service import answer_query
 
     try:
+        if message_id:
+            mark_as_read(message_id)  # blue ticks + "typing..." appear immediately
         result = answer_query(sender, text)
         send_whatsapp_message(sender, result["answer"])
         logger.info("replied to %s (route=%s)", sender, result["route"])
@@ -103,6 +128,6 @@ async def receive_webhook(request: Request) -> dict:
         if message["id"] and not claim_message(message["id"]):
             logger.info("duplicate delivery ignored (id=%s)", message["id"])
             continue
-        process_message(message["from"], message["text"])
+        process_message(message["from"], message["text"], message["id"])
     # always 200 - Meta retries aggressively on errors, which would duplicate replies
     return {"status": "received"}

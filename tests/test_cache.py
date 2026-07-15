@@ -18,8 +18,17 @@ def _enable_redis(monkeypatch):
 
 
 def _disable_redis(monkeypatch):
-    monkeypatch.delenv("UPSTASH_REDIS_REST_URL", raising=False)
-    monkeypatch.delenv("UPSTASH_REDIS_REST_TOKEN", raising=False)
+    # empty-string env vars override any real values in a local .env,
+    # covering every alias name the settings accept
+    for name in (
+        "UPSTASH_REDIS_REST_URL",
+        "UPSTASH_REDIS_REST_TOKEN",
+        "UPSTASH_REDIS_KV_REST_API_URL",
+        "UPSTASH_REDIS_KV_REST_API_TOKEN",
+        "KV_REST_API_URL",
+        "KV_REST_API_TOKEN",
+    ):
+        monkeypatch.setenv(name, "")
     get_settings.cache_clear()
 
 
