@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     whatsapp_access_token: str = ""
     whatsapp_phone_number_id: str = ""
 
+    # Upstash Redis (optional read-through history cache) - empty disables caching
+    upstash_redis_rest_url: str = ""
+    upstash_redis_rest_token: str = ""
+
     # Behaviour
     memory_window: int = 10
     retrieval_k: int = 4

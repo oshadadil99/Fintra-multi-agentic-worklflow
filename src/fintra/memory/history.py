@@ -20,8 +20,18 @@ def _client() -> Client:
 
 
 def load_history(session_id: str, limit: int | None = None) -> list[dict]:
-    """Last `limit` messages for the session, oldest first."""
+    """Last `limit` messages for the session, oldest first.
+
+    Read-through cache: Redis first (~10-50ms), Supabase on a miss
+    (~100-300ms), refilling the cache for the next turn.
+    """
+    from fintra.memory import cache
+
     limit = limit or get_settings().memory_window
+    cached = cache.get_history(session_id)
+    if cached is not None:
+        return cached[-limit:]
+
     rows = (
         _client()
         .table(TABLE)
@@ -31,7 +41,9 @@ def load_history(session_id: str, limit: int | None = None) -> list[dict]:
         .limit(limit)
         .execute()
     )
-    return list(reversed(rows.data))
+    history = list(reversed(rows.data))
+    cache.set_history(session_id, history)
+    return history
 
 
 def claim_message(message_id: str) -> bool:
