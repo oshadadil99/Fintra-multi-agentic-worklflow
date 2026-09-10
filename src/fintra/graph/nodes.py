@@ -4,6 +4,7 @@ Hub-and-spoke: the orchestrator only classifies; the selected spoke produces
 the final answer and the graph terminates. Spokes never call each other.
 """
 
+import httpx
 from langchain_core.messages import HumanMessage, SystemMessage
 from pydantic import BaseModel, Field
 
@@ -11,7 +12,7 @@ from fintra.agents.registry import AGENTS, FALLBACK_ROUTE, ROUTES, AgentSpec
 from fintra.graph.state import GraphState
 from fintra.llm import agent_llm, orchestrator_llm
 from fintra.prompts import FALLBACK_MESSAGE, RAG_SYSTEM, ROUTER_SYSTEM
-from fintra.retrieval.vectorstore import get_retriever
+from fintra.retrieval.vectorstore import clear_pinecone_cache, get_retriever
 
 
 class RouteDecision(BaseModel):
@@ -43,7 +44,13 @@ def orchestrator(state: GraphState) -> GraphState:
 
 def make_rag_node(spec: AgentSpec):
     def rag_node(state: GraphState) -> GraphState:
-        docs = get_retriever(spec.namespace).invoke(state["query"])
+        try:
+            docs = get_retriever(spec.namespace).invoke(state["query"])
+        except (httpx.TransportError, OSError):
+            # a frozen serverless container can thaw with a stale pooled
+            # connection (see fintra.memory.history for the full story)
+            clear_pinecone_cache()
+            docs = get_retriever(spec.namespace).invoke(state["query"])
         context = "\n\n---\n\n".join(d.page_content for d in docs) or "(no documents found)"
         prompt = [
             SystemMessage(content=RAG_SYSTEM.format(persona=spec.persona, context=context)),

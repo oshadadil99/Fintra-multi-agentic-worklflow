@@ -41,3 +41,14 @@ def get_retriever(namespace: str) -> VectorStoreRetriever:
             "lambda_mult": settings.retrieval_lambda,
         },
     )
+
+
+def clear_pinecone_cache() -> None:
+    """Drop the cached Pinecone clients so the next call rebuilds them.
+
+    Called after a transport-level failure that may indicate a stale
+    pooled connection thawed from a frozen serverless container (see
+    fintra.memory.history for the full explanation).
+    """
+    _pinecone_index.cache_clear()
+    get_vectorstore.cache_clear()

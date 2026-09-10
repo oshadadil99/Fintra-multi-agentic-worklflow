@@ -28,12 +28,21 @@ def _with_retry(call: Callable[[Client], T]) -> T:
 
     Serverless containers can freeze between invocations; a connection
     pooled on the cached client can be thawed into a stale socket and
-    raise httpcore.ConnectError (Errno 16, "Device or resource busy") on
-    reuse. Rebuilding the client clears the pool and recovers cleanly.
+    raise a transport-level error (e.g. httpcore.ConnectError, Errno 16
+    "Device or resource busy") on reuse. Rebuilding the client clears the
+    pool and recovers cleanly. httpx.TransportError covers ConnectError,
+    ReadError, RemoteProtocolError etc.; OSError covers the errno cases
+    that surface below httpx (e.g. from the raw socket).
+
+    (A custom httpx_client with keep-alive disabled would remove the
+    failure mode outright, but supabase-py's create_client skips its own
+    apikey/authorization header injection when you supply one - so that
+    "fix" silently breaks auth instead. Retry-and-rebuild is the safe
+    option here.)
     """
     try:
         return call(_client())
-    except httpx.ConnectError:
+    except (httpx.TransportError, OSError):
         _client.cache_clear()
         return call(_client())
 
