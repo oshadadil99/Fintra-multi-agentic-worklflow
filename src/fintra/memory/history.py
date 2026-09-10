@@ -5,18 +5,37 @@ in the WhatsApp phase it becomes the sender's phone number, unchanged.
 """
 
 from functools import lru_cache
+from typing import Callable, TypeVar
 
+import httpx
 from supabase import Client, create_client
 
 from fintra.config import get_settings
 
 TABLE = "chat_history"
 
+T = TypeVar("T")
+
 
 @lru_cache
 def _client() -> Client:
     settings = get_settings()
     return create_client(settings.supabase_url, settings.supabase_service_role_key)
+
+
+def _with_retry(call: Callable[[Client], T]) -> T:
+    """Run a Supabase call, retrying once against a fresh client.
+
+    Serverless containers can freeze between invocations; a connection
+    pooled on the cached client can be thawed into a stale socket and
+    raise httpcore.ConnectError (Errno 16, "Device or resource busy") on
+    reuse. Rebuilding the client clears the pool and recovers cleanly.
+    """
+    try:
+        return call(_client())
+    except httpx.ConnectError:
+        _client.cache_clear()
+        return call(_client())
 
 
 def load_history(session_id: str, limit: int | None = None) -> list[dict]:
@@ -32,9 +51,8 @@ def load_history(session_id: str, limit: int | None = None) -> list[dict]:
     if cached is not None:
         return cached[-limit:]
 
-    rows = (
-        _client()
-        .table(TABLE)
+    rows = _with_retry(
+        lambda client: client.table(TABLE)
         .select("role, content")
         .eq("session_id", session_id)
         .order("id", desc=True)
@@ -55,9 +73,8 @@ def claim_message(message_id: str) -> bool:
     On any storage error we choose at-least-once over silence and process.
     """
     try:
-        result = (
-            _client()
-            .table("processed_messages")
+        result = _with_retry(
+            lambda client: client.table("processed_messages")
             .upsert({"message_id": message_id}, on_conflict="message_id", ignore_duplicates=True)
             .execute()
         )
@@ -67,9 +84,13 @@ def claim_message(message_id: str) -> bool:
 
 
 def append_turn(session_id: str, query: str, answer: str) -> None:
-    _client().table(TABLE).insert(
-        [
-            {"session_id": session_id, "role": "user", "content": query},
-            {"session_id": session_id, "role": "assistant", "content": answer},
-        ]
-    ).execute()
+    _with_retry(
+        lambda client: client.table(TABLE)
+        .insert(
+            [
+                {"session_id": session_id, "role": "user", "content": query},
+                {"session_id": session_id, "role": "assistant", "content": answer},
+            ]
+        )
+        .execute()
+    )
