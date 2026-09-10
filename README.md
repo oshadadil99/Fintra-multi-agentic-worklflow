@@ -1,6 +1,6 @@
 # Morgan Treasuries — Multi-Agent RAG Platform
 
-> ## 💬 Try it live on WhatsApp: **+94 72 574 1639**
+> ## Try it live on WhatsApp: **+94 72 574 1639**
 >
 > **Message the assistant right now** and watch the multi-agent workflow in action — ask about fixed deposit rates, vehicle leasing, or the company itself, then ask a follow-up to see per-session memory resolve it. Every message you send is routed live through LangGraph → Vertex AI (Gemini) → Pinecone MMR retrieval → Supabase memory, hosted serverless on Vercel.
 >
@@ -22,7 +22,7 @@ However, to demonstrate my hands-on expertise in multi-agent orchestration, stat
 
 ---
 
-### 💡 Technical Deep Dive & Discussion Ready
+### Technical Deep Dive & Discussion Ready
 
 While the proprietary code must remain confidential, I am fully prepared and excited to deep-dive into the following during our technical interview:
 
