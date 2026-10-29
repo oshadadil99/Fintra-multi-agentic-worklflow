@@ -156,4 +156,4 @@ Covers: registry invariants, routing decisions (including unknown-route degradat
 
 ---
 
-Feel free to track my commit history to see the platform take shape! I look forward to discussing how my experience aligns with the cutting-edge AI orchestration happening at H2O.ai.
+
